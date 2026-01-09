@@ -1,15 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { createClickUpClient } from '../clickup-client/index.js';
-import { 
-  CommentsEnhancedClient, 
-  // CreateTaskCommentParams, 
-  CreateChatViewCommentParams,
+import {
+  CommentsEnhancedClient,
   CreateListCommentParams,
   UpdateCommentParams,
   CreateThreadedCommentParams
 } from '../clickup-client/comments-enhanced.js';
-import { /* applyMarkdownStyling, */ createMarkdownPreview } from '../utils/markdown-styling.js';
+import { createMarkdownPreview } from '../utils/markdown-styling.js';
 import { processCommentBlocks } from '../utils/clickup-comment-formatter.js';
 
 // Create clients
@@ -24,15 +22,15 @@ function formatCommentResponse(result: any, title?: string): any {
     // Create a styled preview if we have markdown content
     if (result.comment_markdown) {
       const styledPreview = createMarkdownPreview(
-        result.comment_markdown, 
+        result.comment_markdown,
         title || 'Comment Preview',
         { useColors: true, useEmojis: true }
       );
-      
+
       // Add the styled preview to the response
       result.styled_preview = styledPreview;
     }
-    
+
     // If we have multiple comments, style each one
     if (result.comments && Array.isArray(result.comments)) {
       result.comments = result.comments.map((comment: any, index: number) => {
@@ -46,7 +44,7 @@ function formatCommentResponse(result: any, title?: string): any {
         return comment;
       });
     }
-    
+
     return result;
   } catch (error) {
     console.warn('Failed to apply markdown styling:', error);
@@ -55,6 +53,11 @@ function formatCommentResponse(result: any, title?: string): any {
 }
 
 export function setupCommentTools(server: McpServer): void {
+
+  // ========================================
+  // LITE: Chat view tools removed
+  // ========================================
+
   // Register raw API test tool for debugging
   server.tool(
     'clickup_create_task_comment_raw_test',
@@ -136,14 +139,14 @@ export function setupCommentTools(server: McpServer): void {
       try {
         // Process comment blocks to ensure proper code block separation
         const processedComment = processCommentBlocks(comment);
-        
+
         // Create payload with processed structured comment array
         const payload = {
           notify_all: commentParams.notify_all || false,
           assignee: commentParams.assignee,
           comment: processedComment
         };
-        
+
         // DEBUG: Log exactly what we're sending to ClickUp API
         console.log('=== DEBUG: Sending to ClickUp API ===');
         console.log('URL:', `/task/${task_id}/comment`);
@@ -151,14 +154,14 @@ export function setupCommentTools(server: McpServer): void {
         console.log('Processed comment blocks:', JSON.stringify(processedComment, null, 2));
         console.log('Full payload:', JSON.stringify(payload, null, 2));
         console.log('=====================================');
-        
+
         const result = await clickUpClient.post(`/task/${task_id}/comment`, payload);
-        
+
         // DEBUG: Log what ClickUp returns
         console.log('=== DEBUG: ClickUp API Response ===');
         console.log('Raw Response:', JSON.stringify(result, null, 2));
         console.log('===================================');
-        
+
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
         };
@@ -172,55 +175,8 @@ export function setupCommentTools(server: McpServer): void {
     }
   );
 
-  // Register get_chat_view_comments tool
-  server.tool(
-    'clickup_get_chat_view_comments',
-    'Get comments for a ClickUp chat view. Returns comment details with pagination support.',
-    {
-      view_id: z.string().describe('The ID of the chat view to get comments for'),
-      start: z.number().optional().describe('Pagination start (timestamp)'),
-      start_id: z.string().optional().describe('Pagination start ID')
-    },
-    async ({ view_id, ...params }) => {
-      try {
-        const result = await commentsClient.getChatViewComments(view_id, params);
-        return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
-        };
-      } catch (error: any) {
-        console.error('Error getting chat view comments:', error);
-        return {
-          content: [{ type: 'text', text: `Error getting chat view comments: ${error.message}` }],
-          isError: true
-        };
-      }
-    }
-  );
-
-  // Register create_chat_view_comment tool
-  server.tool(
-    'clickup_create_chat_view_comment',
-    'Create a new comment in a ClickUp chat view. Supports notification settings. Supports GitHub Flavored Markdown in comment text.',
-    {
-      view_id: z.string().describe('The ID of the chat view to comment on'),
-      comment_text: z.string().describe('The text content of the comment (supports GitHub Flavored Markdown including headers, bold, italic, code blocks, links, lists, etc.)'),
-      notify_all: z.boolean().optional().describe('Whether to notify all assignees')
-    },
-    async ({ view_id, ...commentParams }) => {
-      try {
-        const result = await commentsClient.createChatViewComment(view_id, commentParams as CreateChatViewCommentParams);
-        return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
-        };
-      } catch (error: any) {
-        console.error('Error creating chat view comment:', error);
-        return {
-          content: [{ type: 'text', text: `Error creating chat view comment: ${error.message}` }],
-          isError: true
-        };
-      }
-    }
-  );
+  // LITE: clickup_get_chat_view_comments - REMOVED
+  // LITE: clickup_create_chat_view_comment - REMOVED
 
   // Register get_list_comments tool
   server.tool(

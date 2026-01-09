@@ -4,16 +4,16 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { setupTaskTools } from './tools/task-tools.js';
 import { setupDocTools } from './tools/doc-tools.js';
 import { setupSpaceTools } from './tools/space-tools.js';
-import { setupChecklistTools } from './tools/checklist-tools.js';
+// LITE: Disabled - import { setupChecklistTools } from './tools/checklist-tools.js';
 import { setupCommentTools } from './tools/comment-tools.js';
-import { setupWebhookTools } from './tools/webhook-tools-setup.js';
+// LITE: Disabled - import { setupWebhookTools } from './tools/webhook-tools-setup.js';
 import { setupViewsTools } from './tools/views-tools-setup.js';
 import { setupDependenciesTools } from './tools/dependencies-tools-setup.js';
-import { setupAttachmentsTools } from './tools/attachments-tools-setup.js';
+// LITE: Disabled - import { setupAttachmentsTools } from './tools/attachments-tools-setup.js';
 import { setupCustomFieldTools } from './tools/custom-field-tools.js';
 import { setupTimeTrackingTools } from './tools/time-tracking-tools.js';
-import { setupGoalsTools } from './tools/goals-tools.js';
-import { setupChatTools } from './tools/chat-tools.js';
+// LITE: Disabled - import { setupGoalsTools } from './tools/goals-tools.js';
+// LITE: Disabled - import { setupChatTools } from './tools/chat-tools.js';
 import { setupTaskResources } from './resources/task-resources.js';
 import { setupDocResources } from './resources/doc-resources.js';
 import { setupChecklistResources } from './resources/checklist-resources.js';
@@ -50,18 +50,18 @@ class ClickUpServer {
     setupTaskTools(this.server);
     setupDocTools(this.server);
     setupSpaceTools(this.server);
-    setupChecklistTools(this.server);
+    // LITE: Disabled - setupChecklistTools(this.server);
     setupCommentTools(this.server);
-    
+
     // Advanced features tools
-    setupWebhookTools(this.server);
+    // LITE: Disabled - setupWebhookTools(this.server);
     setupViewsTools(this.server);
     setupDependenciesTools(this.server);
-    setupAttachmentsTools(this.server);
+    // LITE: Disabled - setupAttachmentsTools(this.server);
     setupCustomFieldTools(this.server);
     setupTimeTrackingTools(this.server);
-    setupGoalsTools(this.server);
-    setupChatTools(this.server);
+    // LITE: Disabled - setupGoalsTools(this.server);
+    // LITE: Disabled - setupChatTools(this.server);
   }
 
   private setupResources() {
