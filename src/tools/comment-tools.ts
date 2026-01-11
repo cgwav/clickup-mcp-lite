@@ -85,15 +85,22 @@ export function setupCommentTools(server: McpServer): void {
   // Register get_task_comments tool
   server.tool(
     'clickup_get_task_comments',
-    'Get comments for a ClickUp task. Returns comment details including text, author, and timestamps with enhanced markdown styling.',
+    'Get comments for a ClickUp task. Returns comment details including text, author, and timestamps with enhanced markdown styling. Use limit parameter to restrict number of comments returned.',
     {
       task_id: z.string().describe('The ID of the task to get comments for'),
+      limit: z.number().optional().describe('Maximum number of comments to return (default: all). Use 5-10 for summaries.'),
       start: z.number().optional().describe('Pagination start (timestamp)'),
       start_id: z.string().optional().describe('Pagination start ID')
     },
-    async ({ task_id, ...params }) => {
+    async ({ task_id, limit, ...params }) => {
       try {
         const result = await commentsClient.getTaskComments(task_id, params);
+
+        // Apply limit if specified
+        if (limit && result.comments && Array.isArray(result.comments)) {
+          result.comments = result.comments.slice(0, limit);
+        }
+
         const styledResult = formatCommentResponse(result, 'Task Comments');
         return {
           content: [{ type: 'text', text: JSON.stringify(styledResult, null, 2) }]

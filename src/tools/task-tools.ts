@@ -13,6 +13,126 @@ const listsClient = createListsClient(clickUpClient);
 const foldersClient = createFoldersClient(clickUpClient);
 const authClient = createAuthClient(clickUpClient);
 
+/**
+ * Resolve custom field value to human-readable format
+ * Handles labels, dropdowns, and other field types that store IDs
+ */
+function resolveCustomFieldValue(field: any): any {
+  if (!field || field.value === undefined || field.value === null) {
+    return null;
+  }
+
+  const { type, value, type_config } = field;
+  const options = type_config?.options;
+
+  switch (type) {
+    case 'labels':
+      // Labels store array of UUIDs - resolve to label names
+      if (Array.isArray(value) && options) {
+        return value.map((id: string) => {
+          const opt = options.find((o: any) => o.id === id);
+          return opt?.label || opt?.name || id;
+        });
+      }
+      return value;
+
+    case 'drop_down':
+      // Dropdowns store orderindex - resolve to option name
+      if (options && typeof value === 'number') {
+        const opt = options.find((o: any) => o.orderindex === value);
+        return opt?.name || value;
+      }
+      return value;
+
+    case 'currency':
+      return value ? `${value} ${type_config?.currency_type || 'EUR'}` : null;
+
+    case 'date':
+      return value ? new Date(parseInt(value)).toISOString().split('T')[0] : null;
+
+    case 'checkbox':
+      return value ? 'Yes' : 'No';
+
+    case 'number':
+      return value;
+
+    case 'text':
+    case 'short_text':
+    case 'email':
+    case 'url':
+    case 'phone':
+      return value;
+
+    case 'location':
+      return value?.formatted_address || value;
+
+    default:
+      return typeof value === 'object' ? JSON.stringify(value) : value;
+  }
+}
+
+/**
+ * Process task to resolve all custom field values
+ */
+function resolveTaskCustomFields(task: any): any {
+  if (!task.custom_fields || !Array.isArray(task.custom_fields)) {
+    return task;
+  }
+
+  task.custom_fields = task.custom_fields.map((field: any) => ({
+    ...field,
+    resolved_value: resolveCustomFieldValue(field)
+  }));
+
+  return task;
+}
+
+/**
+ * Create compact task summary for reduced token usage
+ */
+function createCompactTaskSummary(task: any): any {
+  const summary: any = {
+    id: task.id,
+    name: task.name,
+    status: task.status?.status,
+    date_created: task.date_created,
+    date_updated: task.date_updated,
+    start_date: task.start_date,
+    due_date: task.due_date,
+    time_spent: task.time_spent ? Math.round(task.time_spent / 3600000 * 10) / 10 + 'h' : null,
+    assignees: task.assignees?.map((a: any) => a.username || a.initials) || []
+  };
+
+  // Add description if present (truncated)
+  if (task.description) {
+    summary.description = task.description.length > 500
+      ? task.description.substring(0, 500) + '...'
+      : task.description;
+  }
+
+  // Add resolved custom fields (only those with values)
+  if (task.custom_fields) {
+    summary.custom_fields = task.custom_fields
+      .filter((f: any) => f.resolved_value !== null && f.resolved_value !== undefined)
+      .map((f: any) => ({
+        name: f.name,
+        value: f.resolved_value
+      }));
+  }
+
+  // Add subtasks summary if present
+  if (task.subtasks && Array.isArray(task.subtasks)) {
+    summary.subtasks = task.subtasks.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      status: s.status?.status,
+      assignees: s.assignees?.map((a: any) => a.initials) || []
+    }));
+  }
+
+  return summary;
+}
+
 export function setupTaskTools(server: McpServer): void {
   // Workspace and Auth tools
   server.tool(
@@ -85,16 +205,29 @@ export function setupTaskTools(server: McpServer): void {
 
   server.tool(
     'clickup_get_task_details',
-    'Get detailed information about a specific ClickUp task. Returns comprehensive task data including description, assignees, status, and dates.',
+    'Get detailed information about a specific ClickUp task. Returns comprehensive task data including description, assignees, status, and dates. Custom field values are automatically resolved (labels show names instead of UUIDs). Use compact=true for reduced token usage.',
     {
       task_id: z.string().describe('The ID of the task to get'),
-      include_subtasks: z.boolean().optional().describe('Whether to include subtasks in the task details')
+      include_subtasks: z.boolean().optional().describe('Whether to include subtasks in the task details'),
+      compact: z.boolean().optional().describe('Return compact summary instead of full task data (recommended for reduced token usage)')
     },
-    async ({ task_id, include_subtasks }) => {
+    async ({ task_id, include_subtasks, compact }) => {
       try {
         const task = await tasksClient.getTask(task_id, { include_subtasks });
+
+        // Always resolve custom field values (labels, dropdowns, etc.)
+        resolveTaskCustomFields(task);
+
+        // Also resolve subtask custom fields if present
+        if (task.subtasks && Array.isArray(task.subtasks)) {
+          task.subtasks.forEach((subtask: any) => resolveTaskCustomFields(subtask));
+        }
+
+        // Return compact summary if requested
+        const result = compact ? createCompactTaskSummary(task) : task;
+
         return {
-          content: [{ type: 'text', text: JSON.stringify(task, null, 2) }]
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
         };
       } catch (error: any) {
         console.error('Error getting task details:', error);
